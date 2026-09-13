@@ -25,35 +25,54 @@ export const createOrder = async (req, res) => {
       return res.status(400).json({ success: false, message: "Incomplete shipping address." });
     }
 
-    // 1. Process items, validate IDs, and decrement stock
+    // 1. Process items, validate IDs, decrement stock, and accumulate tokens offered
     const formattedItems = [];
+    let calculatedTokensEarned = 0;
+
     for (const item of items) {
       const rawId = item.product || item.productId || item._id;
       const isValidId = mongoose.Types.ObjectId.isValid(rawId);
+      let productTokensOffered = Number(item.tokensOffered || 0);
+      let productDeliveryCharge = Number(item.deliveryCharge || 0);
 
       if (isValidId) {
         const product = await Product.findById(rawId);
-        if (product && product.variants && product.variants.length > 0) {
-          const variantIndex = product.variants.findIndex(
-            (v) =>
-              (v.size || "").toLowerCase() === (item.selectedSize || item.size || "").toLowerCase() &&
-              (v.colourName || "").toLowerCase() === (item.selectedColour || item.colour || "").toLowerCase()
-          );
+        if (product) {
+          // Use authoritative values from database if available
+          if (product.tokensOffered !== undefined) {
+            productTokensOffered = Number(product.tokensOffered) || 0;
+          }
+          if (product.deliveryCharge !== undefined) {
+            productDeliveryCharge = Number(product.deliveryCharge) || 0;
+          }
 
-          if (variantIndex !== -1 && product.variants[variantIndex].stock >= item.qty) {
-            product.variants[variantIndex].stock -= Number(item.qty);
-            await product.save();
+          if (product.variants && product.variants.length > 0) {
+            const variantIndex = product.variants.findIndex(
+              (v) =>
+                (v.size || "").toLowerCase() === (item.selectedSize || item.size || "").toLowerCase() &&
+                (v.colourName || "").toLowerCase() === (item.selectedColour || item.colour || "").toLowerCase()
+            );
+
+            if (variantIndex !== -1 && product.variants[variantIndex].stock >= item.qty) {
+              product.variants[variantIndex].stock -= Number(item.qty);
+              await product.save();
+            }
           }
         }
       }
+
+      const itemQty = Number(item.qty) || 1;
+      calculatedTokensEarned += productTokensOffered * itemQty;
 
       formattedItems.push({
         product: isValidId ? rawId : null,
         name: item.name || "Product",
         selectedSize: item.selectedSize || item.size || "Free Size",
         selectedColour: item.selectedColour || item.colour || "Standard",
-        qty: Number(item.qty) || 1,
+        qty: itemQty,
         price: Number(item.price) || 0,
+        deliveryCharge: productDeliveryCharge,
+        tokensOffered: productTokensOffered,
         image: item.image || "",
       });
     }
@@ -74,10 +93,7 @@ export const createOrder = async (req, res) => {
       }
     }
 
-    // Earn 1 Token for every ₹100 spent on the final paid amount
-    const tokensEarned = Math.floor(baseAmount / 100);
-
-    // 3. Create Order document
+    // 3. Create Order document with custom allocated tokens
     const order = new Order({
       user: req.user ? req.user._id : null,
       guestEmail: guestEmail || (req.user ? req.user.email : undefined),
@@ -98,7 +114,7 @@ export const createOrder = async (req, res) => {
       shippingFee: Number(shippingFee) || 0,
       finalTotal: baseAmount,
       tokensUsed: appliedTokens,
-      tokensEarned: tokensEarned,
+      tokensEarned: calculatedTokensEarned,
     });
 
     await order.save();

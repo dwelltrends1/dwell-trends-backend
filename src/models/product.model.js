@@ -19,7 +19,7 @@ const variantSchema = new mongoose.Schema({
 const productSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
-    brand: { type: String, default: "Saanvi Fashion" },
+    brand: { type: String, default: "Dwell Trends" },
     category: { type: String, required: true, index: true },
     description: { type: String, required: true },
     
@@ -30,9 +30,21 @@ const productSchema = new mongoose.Schema(
       enum: ["Men", "Women", "Kids", "Beauty", "Home"], 
       required: true 
     },
-    subCategory: { type: String, required: true }, // Your existing category field
+    subCategory: { type: String, required: true },
+
+    // Per-product custom delivery charge & rewards allocation
+    deliveryCharge: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    tokensOffered: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
     
-    // New Deal Engine Fields
+    // Deal Engine Fields
     dealType: {
       type: String,
       enum: ["None", "Hot", "Wow"],
@@ -42,10 +54,11 @@ const productSchema = new mongoose.Schema(
       type: Number,
       default: null,
     },
-    // Tracks specific combinations of size/color for precise inventory
+    
+    // Size/color variant tracking
     variants: [variantSchema],
     
-    // Cloudinary setup
+    // Cloudinary media setup
     images: [
       {
         public_id: { type: String, required: true },
@@ -55,7 +68,7 @@ const productSchema = new mongoose.Schema(
     
     fabric: { type: String },
     work: { type: String },
-    details: [{ type: String }], // Array of bullet points
+    details: [{ type: String }],
     
     isNewItem: { type: Boolean, default: false },
     rating: { type: Number, default: 0 },

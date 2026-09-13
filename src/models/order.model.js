@@ -7,6 +7,8 @@ const orderItemSchema = new mongoose.Schema({
   selectedColour: { type: String, default: "Standard" },
   qty: { type: Number, required: true, min: 1, default: 1 },
   price: { type: Number, required: true },
+  deliveryCharge: { type: Number, default: 0 },
+  tokensOffered: { type: Number, default: 0 },
   image: { type: String, default: "" },
 });
 
@@ -50,7 +52,7 @@ const orderSchema = new mongoose.Schema(
       default: "Processing",
     },
 
-    // Method 1 Verification Fields
+    // Verification Fields
     paymentUtr: { type: String, default: "" }, // 12-digit UPI Ref/UTR entered by customer
     upiTransactionRef: { type: String, default: "" }, // DT_orderId
   },

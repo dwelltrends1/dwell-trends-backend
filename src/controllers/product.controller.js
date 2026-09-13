@@ -3,7 +3,25 @@ import cloudinary, { uploadBufferToCloudinary } from "../utils/cloudinary.js";
 
 export const createProduct = async (req, res) => {
   try {
-    const { name, brand, mainCategory, subCategory, category, description, price, mrp, dealType, dealPrice, variants, fabric, work, details, isNewItem } = req.body;
+    const {
+      name,
+      brand,
+      mainCategory,
+      subCategory,
+      category,
+      description,
+      price,
+      mrp,
+      deliveryCharge,
+      tokensOffered,
+      dealType,
+      dealPrice,
+      variants,
+      fabric,
+      work,
+      details,
+      isNewItem,
+    } = req.body;
 
     let images = [];
     if (req.files && req.files.length > 0) {
@@ -31,11 +49,13 @@ export const createProduct = async (req, res) => {
       name,
       brand: brand || "Dwell Trends",
       mainCategory,
-      subCategory: subCategory || category, 
+      subCategory: subCategory || category,
       category: category || subCategory,
       description,
       price: Number(price),
       mrp: Number(mrp),
+      deliveryCharge: deliveryCharge !== undefined && deliveryCharge !== "" ? Number(deliveryCharge) : 0,
+      tokensOffered: tokensOffered !== undefined && tokensOffered !== "" ? Number(tokensOffered) : 0,
       dealType: dealType || "None",
       dealPrice: dealPrice ? Number(dealPrice) : null,
       variants: parsedVariants,
@@ -63,18 +83,18 @@ export const getProducts = async (req, res) => {
     if (subCategory) query.subCategory = subCategory;
     if (category && category !== "all") query.category = category;
     if (dealType) query.dealType = dealType;
-    
+
     if (search) query.name = { $regex: search, $options: "i" };
-    
+
     // Advanced Price Filtering matching standard OR deal price
     if (minPrice || maxPrice) {
       const priceFilter = {};
       if (minPrice) priceFilter.$gte = Number(minPrice);
       if (maxPrice) priceFilter.$lte = Number(maxPrice);
-      
+
       query.$or = [
         { dealType: "None", price: priceFilter },
-        { dealType: { $ne: "None" }, dealPrice: priceFilter }
+        { dealType: { $ne: "None" }, dealPrice: priceFilter },
       ];
     }
 
@@ -109,7 +129,25 @@ export const updateProduct = async (req, res) => {
       return res.status(404).json({ success: false, message: "Product not found" });
     }
 
-    const { name, brand, mainCategory, subCategory, category, description, price, mrp, dealType, dealPrice, variants, fabric, work, details, isNewItem } = req.body;
+    const {
+      name,
+      brand,
+      mainCategory,
+      subCategory,
+      category,
+      description,
+      price,
+      mrp,
+      deliveryCharge,
+      tokensOffered,
+      dealType,
+      dealPrice,
+      variants,
+      fabric,
+      work,
+      details,
+      isNewItem,
+    } = req.body;
 
     let updatedImages = product.images;
     if (req.files && req.files.length > 0) {
@@ -129,8 +167,16 @@ export const updateProduct = async (req, res) => {
         }));
     }
 
-    const parsedVariants = variants ? (typeof variants === "string" ? JSON.parse(variants) : variants) : product.variants;
-    const parsedDetails = details ? (typeof details === "string" ? JSON.parse(details) : details) : product.details;
+    const parsedVariants = variants
+      ? typeof variants === "string"
+        ? JSON.parse(variants)
+        : variants
+      : product.variants;
+    const parsedDetails = details
+      ? typeof details === "string"
+        ? JSON.parse(details)
+        : details
+      : product.details;
 
     product = await Product.findByIdAndUpdate(
       id,
@@ -141,16 +187,24 @@ export const updateProduct = async (req, res) => {
         subCategory: subCategory || product.subCategory,
         category: category || product.category,
         description: description || product.description,
-        price: price ? Number(price) : product.price,
-        mrp: mrp ? Number(mrp) : product.mrp,
+        price: price !== undefined && price !== "" ? Number(price) : product.price,
+        mrp: mrp !== undefined && mrp !== "" ? Number(mrp) : product.mrp,
+        deliveryCharge:
+          deliveryCharge !== undefined && deliveryCharge !== ""
+            ? Number(deliveryCharge)
+            : product.deliveryCharge ?? 0,
+        tokensOffered:
+          tokensOffered !== undefined && tokensOffered !== ""
+            ? Number(tokensOffered)
+            : product.tokensOffered ?? 0,
         dealType: dealType || product.dealType,
-        dealPrice: dealType === "None" ? null : (dealPrice ? Number(dealPrice) : product.dealPrice),
+        dealPrice: dealType === "None" ? null : dealPrice ? Number(dealPrice) : product.dealPrice,
         variants: parsedVariants,
         images: updatedImages,
         fabric: fabric || product.fabric,
         work: work || product.work,
         details: parsedDetails,
-        isNewItem: isNewItem !== undefined ? (isNewItem === "true" || isNewItem === true) : product.isNewItem,
+        isNewItem: isNewItem !== undefined ? isNewItem === "true" || isNewItem === true : product.isNewItem,
       },
       { new: true, runValidators: true }
     );
@@ -165,7 +219,7 @@ export const updateProduct = async (req, res) => {
 export const updateDealStatus = async (req, res) => {
   try {
     const { productIds, dealType, dealPrice } = req.body;
-    
+
     await Product.updateMany(
       { _id: { $in: productIds } },
       { $set: { dealType, dealPrice: dealType === "None" ? null : Number(dealPrice) } }
