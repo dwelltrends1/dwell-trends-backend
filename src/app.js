@@ -29,7 +29,9 @@ const allowedOrigins = [
     "http://localhost:5173",
     "http://localhost:8080",
     "https://dwelltrends.vercel.app",
-    "https://dwell-trends.vercel.app"
+    "https://dwell-trends.vercel.app",
+    "https://dwell-trends-frontend.vercel.app",
+    "https://dwelltrends-frontend.vercel.app/"
 ];
 
 app.use(cors({
